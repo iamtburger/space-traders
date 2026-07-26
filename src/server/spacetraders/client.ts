@@ -1,129 +1,182 @@
 import { z } from "zod";
 import { config } from "../config";
 import {
-  agentSchema,
-  contractSchema,
-  shipCargoSchema,
-  shipNavSchema,
-  shipSchema,
-  waypointSchema,
-  type Agent,
-  type Contract,
-  type Ship,
-  type ShipCargo,
-  type ShipNav,
-  type Waypoint,
+	agentSchema,
+	contractSchema,
+	shipCargoSchema,
+	shipNavSchema,
+	shipSchema,
+	ShipTypes,
+	shipyardSchema,
+	waypointSchema,
+	WaypointTraits,
+	WaypointTypes,
+	type Agent,
+	type Contract,
+	type Ship,
+	type ShipCargo,
+	type ShipNav,
+	type Waypoint,
 } from "./schemas";
 
 const BASE_URL = "https://api.spacetraders.io/v2";
 
 class SpaceTradersApiError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly body: unknown,
-  ) {
-    super(`SpaceTraders API error ${status}: ${JSON.stringify(body)}`);
-  }
+	constructor(
+		public readonly status: number,
+		public readonly body: unknown,
+	) {
+		super(`SpaceTraders API error ${status}: ${JSON.stringify(body)}`);
+	}
 }
 
-async function request<S extends z.ZodTypeAny>(
-  method: string,
-  path: string,
-  dataSchema: S,
-  body?: unknown,
-): Promise<z.infer<S>> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${config.SPACETRADERS_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+const RequestMethod = {
+	GET: "GET",
+	POST: "POST",
+} as const;
 
-  const json = (await res.json()) as { data?: unknown };
-  if (!res.ok) {
-    throw new SpaceTradersApiError(res.status, json);
-  }
-  return dataSchema.parse(json.data);
+type RequestMethod = (typeof RequestMethod)[keyof typeof RequestMethod];
+
+async function request<S extends z.ZodTypeAny>(
+	method: RequestMethod,
+	path: string,
+	dataSchema: S,
+	body?: unknown,
+): Promise<z.infer<S>> {
+	const res = await fetch(`${BASE_URL}${path}`, {
+		method,
+		headers: {
+			Authorization: `Bearer ${config.SPACETRADERS_TOKEN}`,
+			"Content-Type": "application/json",
+		},
+		body: body !== undefined ? JSON.stringify(body) : undefined,
+	});
+
+	const json = (await res.json()) as { data?: unknown };
+	if (!res.ok) {
+		throw new SpaceTradersApiError(res.status, json);
+	}
+	return dataSchema.parse(json.data);
 }
 
 export function getAgent(): Promise<Agent> {
-  return request("GET", "/my/agent", agentSchema);
+	return request(RequestMethod.GET, "/my/agent", agentSchema);
 }
 
 export function listShips(): Promise<Ship[]> {
-  return request("GET", "/my/ships", z.array(shipSchema));
+	return request(RequestMethod.GET, "/my/ships", z.array(shipSchema));
 }
 
 export function getWaypoint(
-  systemSymbol: string,
-  waypointSymbol: string,
+	systemSymbol: string,
+	waypointSymbol: string,
 ): Promise<Waypoint> {
-  return request(
-    "GET",
-    `/systems/${systemSymbol}/waypoints/${waypointSymbol}`,
-    waypointSchema,
-  );
+	return request(
+		RequestMethod.GET,
+		`/systems/${systemSymbol}/waypoints/${waypointSymbol}`,
+		waypointSchema,
+	);
 }
 
 export function orbitShip(shipSymbol: string): Promise<{ nav: ShipNav }> {
-  return request(
-    "POST",
-    `/my/ships/${shipSymbol}/orbit`,
-    z.object({ nav: shipNavSchema }),
-  );
+	return request(
+		RequestMethod.POST,
+		`/my/ships/${shipSymbol}/orbit`,
+		z.object({ nav: shipNavSchema }),
+	);
 }
 
 export function dockShip(shipSymbol: string): Promise<{ nav: ShipNav }> {
-  return request(
-    "POST",
-    `/my/ships/${shipSymbol}/dock`,
-    z.object({ nav: shipNavSchema }),
-  );
+	return request(
+		RequestMethod.POST,
+		`/my/ships/${shipSymbol}/dock`,
+		z.object({ nav: shipNavSchema }),
+	);
 }
 
 export function navigateShip(
-  shipSymbol: string,
-  waypointSymbol: string,
+	shipSymbol: string,
+	waypointSymbol: string,
 ): Promise<{ nav: ShipNav; fuel: { current: number; capacity: number } }> {
-  return request(
-    "POST",
-    `/my/ships/${shipSymbol}/navigate`,
-    z.object({
-      nav: shipNavSchema,
-      fuel: z.object({ current: z.number(), capacity: z.number() }),
-    }),
-    { waypointSymbol },
-  );
+	return request(
+		RequestMethod.POST,
+		`/my/ships/${shipSymbol}/navigate`,
+		z.object({
+			nav: shipNavSchema,
+			fuel: z.object({ current: z.number(), capacity: z.number() }),
+		}),
+		{ waypointSymbol },
+	);
 }
 
 export function sellCargo(
-  shipSymbol: string,
-  symbol: string,
-  units: number,
+	shipSymbol: string,
+	symbol: string,
+	units: number,
 ): Promise<{ agent: Agent; cargo: ShipCargo }> {
-  return request(
-    "POST",
-    `/my/ships/${shipSymbol}/sell`,
-    z.object({ agent: agentSchema, cargo: shipCargoSchema }),
-    { symbol, units },
-  );
+	return request(
+		RequestMethod.POST,
+		`/my/ships/${shipSymbol}/sell`,
+		z.object({ agent: agentSchema, cargo: shipCargoSchema }),
+		{ symbol, units },
+	);
 }
 
 export function listContracts(): Promise<Contract[]> {
-  return request("GET", "/my/contracts", z.array(contractSchema));
+	return request("GET", "/my/contracts", z.array(contractSchema));
 }
 
 export function acceptContract(
-  contractId: string,
+	contractId: string,
 ): Promise<{ agent: Agent; contract: Contract }> {
-  return request(
-    "POST",
-    `/my/contracts/${contractId}/accept`,
-    z.object({ agent: agentSchema, contract: contractSchema }),
-    {},
-  );
+	return request(
+		RequestMethod.POST,
+		`/my/contracts/${contractId}/accept`,
+		z.object({ agent: agentSchema, contract: contractSchema }),
+		{},
+	);
+}
+
+export function findWaypoint({
+	systemSymbol,
+	...rest
+}: {
+	systemSymbol: string;
+	page?: number;
+	limit?: number;
+	type?: WaypointTypes;
+	trait?: WaypointTraits;
+}) {
+	const queryParams = Object.entries(rest)
+		.map(([key, value], index) =>
+			index === 0 ? `?${key}=${value}` : `${key}=${value}`,
+		)
+		.join("&");
+	return request(
+		RequestMethod.GET,
+		`/systems/${systemSymbol}/waypoints${queryParams}`,
+		waypointSchema,
+		{},
+	);
+}
+
+export function getShipyard(
+	systemSymbol: string,
+	shipyardWaypointSymbol: string,
+) {
+	return request(
+		RequestMethod.GET,
+		`/systems/${systemSymbol}/waypoints/${shipyardWaypointSymbol}/shipyard`,
+		shipyardSchema,
+		{},
+	);
+}
+
+export function purchaseShip(shipType: ShipTypes, waypointSymbol: string) {
+	return request(RequestMethod.POST, `/my/ships`, z.any(), {
+		shipType,
+		waypointSymbol,
+	});
 }
 
 // Registration deliberately isn't exposed here: it needs to run *before* a
