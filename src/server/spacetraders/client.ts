@@ -155,7 +155,7 @@ export function findWaypoint({
 	return request(
 		RequestMethod.GET,
 		`/systems/${systemSymbol}/waypoints${queryParams}`,
-		waypointSchema,
+		z.any(),
 		{},
 	);
 }
@@ -177,6 +177,49 @@ export function purchaseShip(shipType: ShipTypes, waypointSymbol: string) {
 		shipType,
 		waypointSymbol,
 	});
+}
+
+export function refuelShip(
+	shipSymbol: string,
+	fromCargo = false,
+	units: number,
+) {
+	return request(RequestMethod.POST, `my/ships/${shipSymbol}/refuel`, z.any(), {
+		fromCargo,
+		units,
+	});
+}
+
+export function extractResources(shipSymbol: string) {
+	return request(
+		RequestMethod.POST,
+		`my/ships/${shipSymbol}/extract`,
+		z.any(),
+		{},
+	);
+}
+
+export function deliver(
+	contractId: string,
+	shipSymbol: string,
+	tradeSymbol: string,
+	units: number,
+) {
+	return request(
+		RequestMethod.POST,
+		`/my/contracts/${contractId}/deliver`,
+		z.any(),
+		{ shipSymbol, tradeSymbol, units },
+	);
+}
+
+export function fulfillContract(contractId: string) {
+	return request(
+		RequestMethod.POST,
+		`/my/contracts/${contractId}/fulfill`,
+		z.any(),
+		{},
+	);
 }
 
 // Registration deliberately isn't exposed here: it needs to run *before* a

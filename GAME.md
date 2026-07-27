@@ -34,8 +34,8 @@ Optionally you can also sell goods that are not defined in the contract, but you
 - [x] `orbitShip`
 - [x] `navigateShip`
 - [x] `dockShip`
-- [ ] `refuelShip`
-- [ ] `extract`
-- [ ] `deliver`
-- [ ] `fulfillContract`
+- [x] `refuelShip`
+- [x] `extract`
+- [x] `deliver`
+- [x] `fulfillContract`
 - [x] `sellCargo`

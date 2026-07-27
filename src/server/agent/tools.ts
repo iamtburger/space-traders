@@ -89,10 +89,18 @@ export const tools = {
 		description: "Get paginated and filtered waypoints for a given system.",
 		parameters: z.object({
 			systemSymbol: z.string().describe("e.g. X1-DF55"),
-			page: z.number().optional().describe("What entry offset to request"),
+			page: z
+				.number()
+				.int()
+				.positive()
+				.default(1)
+				.describe("What entry offset to request"),
 			limit: z
 				.number()
-				.optional()
+				.int()
+				.min(1)
+				.max(20)
+				.default(1)
 				.describe("How many entries to return per page"),
 			type: waypointTypes.optional(),
 			trait: waypointTraits.optional(),
@@ -120,5 +128,56 @@ export const tools = {
 		}),
 		execute: async ({ waypointSymbol, shipType }) =>
 			spaceTraders.purchaseShip(shipType, waypointSymbol),
+	}),
+
+	refuelShip: tool({
+		description:
+			"When your ship arrives at the target waypoint, you can refuel your ship. Requires the ship to be docked in a waypoint that has the Marketplace trait, and the market must be selling fuel in order to refuel.",
+		parameters: z.object({
+			shipSymbol: z.string(),
+			units: z
+				.number()
+				.describe(
+					"The amount of fuel to fill in the ship's tanks. When not specified, the ship will be refueled to its maximum fuel capacity.",
+				),
+			fromCargo: z
+				.boolean()
+				.optional()
+				.default(false)
+				.describe("Wether to use the FUEL thats in your cargo or not."),
+		}),
+		execute: async ({ shipSymbol, fromCargo, units }) =>
+			spaceTraders.refuelShip(shipSymbol, fromCargo, units),
+	}),
+
+	extractResources: tool({
+		description:
+			"Extract resources from a waypoint that can be extracted, such as asteroid fields, into your ship. Send an optional survey as the payload to target specific yields. The ship must be in orbit to be able to extract and must have mining equipments installed that can extract goods, such as the Gas Siphon mount for gas-based goods or Mining Laser mount for ore-based goods.",
+		parameters: z.object({
+			shipSymbol: z.string().describe("The symbol of the ship."),
+		}),
+		execute: async ({ shipSymbol }) =>
+			spaceTraders.extractResources(shipSymbol),
+	}),
+
+	deliver: tool({
+		description: "",
+		parameters: z.object({
+			contractId: z.string().describe("The ID of the contract."),
+			shipSymbol: z.string().describe("The symbol of the ship."),
+			tradeSymbol: z.string(),
+			units: z.number(),
+		}),
+		execute: async ({ contractId, shipSymbol, tradeSymbol, units }) =>
+			spaceTraders.deliver(contractId, shipSymbol, tradeSymbol, units),
+	}),
+
+	fulfillContract: tool({
+		description:
+			"Fulfill a contract. Can only be used on contracts that have all of their delivery terms fulfilled.",
+		parameters: z.object({
+			contractId: z.string(),
+		}),
+		execute: async ({ contractId }) => spaceTraders.fulfillContract(contractId),
 	}),
 };
