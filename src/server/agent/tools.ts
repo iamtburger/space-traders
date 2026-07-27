@@ -93,20 +93,26 @@ export const tools = {
 				.number()
 				.int()
 				.positive()
-				.default(1)
-				.describe("What entry offset to request"),
+				.nullable()
+				.describe("What entry offset to request. Defaults to 1 if not specified."),
 			limit: z
 				.number()
 				.int()
 				.min(1)
 				.max(20)
-				.default(1)
-				.describe("How many entries to return per page"),
-			type: waypointTypes.optional(),
-			trait: waypointTraits.optional(),
+				.nullable()
+				.describe("How many entries to return per page. Defaults to 1 if not specified."),
+			type: waypointTypes.nullable(),
+			trait: waypointTraits.nullable(),
 		}),
 		execute: async ({ systemSymbol, page, limit, type, trait }) =>
-			spaceTraders.findWaypoint({ systemSymbol, page, limit, type, trait }),
+			spaceTraders.findWaypoint({
+				systemSymbol,
+				page: page ?? 1,
+				limit: limit ?? 1,
+				type: type ?? undefined,
+				trait: trait ?? undefined,
+			}),
 	}),
 
 	getShipyard: tool({
@@ -142,12 +148,13 @@ export const tools = {
 				),
 			fromCargo: z
 				.boolean()
-				.optional()
-				.default(false)
-				.describe("Wether to use the FUEL thats in your cargo or not."),
+				.nullable()
+				.describe(
+					"Wether to use the FUEL thats in your cargo or not. Defaults to false if not specified.",
+				),
 		}),
 		execute: async ({ shipSymbol, fromCargo, units }) =>
-			spaceTraders.refuelShip(shipSymbol, fromCargo, units),
+			spaceTraders.refuelShip(shipSymbol, fromCargo ?? false, units),
 	}),
 
 	extractResources: tool({
