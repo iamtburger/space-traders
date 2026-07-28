@@ -94,14 +94,18 @@ export const tools = {
 				.int()
 				.positive()
 				.nullable()
-				.describe("What entry offset to request. Defaults to 1 if not specified."),
+				.describe(
+					"What entry offset to request. Defaults to 1 if not specified.",
+				),
 			limit: z
 				.number()
 				.int()
 				.min(1)
 				.max(20)
 				.nullable()
-				.describe("How many entries to return per page. Defaults to 1 if not specified."),
+				.describe(
+					"How many entries to return per page. Defaults to 1 if not specified.",
+				),
 			type: waypointTypes.nullable(),
 			trait: waypointTraits.nullable(),
 		}),
