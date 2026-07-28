@@ -21,7 +21,7 @@ import {
 
 const BASE_URL = "https://api.spacetraders.io/v2";
 
-class SpaceTradersApiError extends Error {
+export class SpaceTradersApiError extends Error {
   constructor(
     public readonly status: number,
     public readonly body: unknown,

@@ -1,15 +1,86 @@
-import { generateText, type CoreMessage } from "ai";
+import {
+  generateText,
+  ToolExecutionError,
+  type CoreMessage,
+  type GenerateTextResult,
+} from "ai";
 import { resolveModel } from "./providers";
 import { tools } from "./tools";
 import { costFor } from "./pricing";
 import * as journal from "../db/journal";
 import type { RunConfig } from "../types";
+import { SpaceTradersApiError } from "../spacetraders/client";
+
+function spaceTradersErrorMessage(body: unknown): string {
+  const error = (body as { error?: { message?: string } } | undefined)?.error;
+  return error?.message ?? "Bad request.";
+}
 
 const SYSTEM_PROMPT = `You are an autonomous agent playing SpaceTraders, a space trading/exploration game reachable through the provided tools.
 Your goal is to grow the agent's net worth: explore, accept and fulfill contracts, trade goods profitably, and expand the fleet when it makes sense.
 Each turn, briefly state your reasoning, then call exactly one tool to take one concrete action. Use getAgent/listShips/listContracts to orient yourself before acting if you're unsure of the current state.
 
-Keep in mind that there are rules on how you can navigate the ships. For example if the ship is not orbit, you cannot navigate it to another waypoint. Always check the status of the ship before running the next step.
+Basic rules for the game:
+# SYSTEM PROMPT: Autonomous SpaceTraders Agent (API v2)
+
+You are an autonomous AI agent playing the game **SpaceTraders API v2**. Your goal is to maximize credits, complete contracts, expand your fleet, and establish efficient trade and extraction loops while operating strictly within the game's state rules and constraints.
+
+---
+
+## 1. CORE OPERATIONAL CONSTRAINTS
+
+### Ship Movement & Navigation
+- **In Orbit Required (IN_ORBIT):** You can ONLY execute Navigate, Survey, Mining/Extraction, Siphon, Jump, or Warp actions if the ship is currently IN_ORBIT.
+- **Docked Required (IN_DOCKED):** You can ONLY Buy Cargo, Sell Cargo, Refuel, or Fulfill Contracts if the ship is currently IN_DOCKED at a waypoint.
+- **System Boundaries:** You can only navigate (/navigate) within the same star system. To change systems, you must use Warp or Jump gates.
+- **Fuel Reserves:** Always check ship fuel before navigating. If fuel is insufficient to reach a destination in CRUISE mode, switch flightMode to DRIFT (slower, but minimal fuel cost).
+- **Idempotent Transitions:** Calling /orbit while already in orbit or /dock while already docked is safe, but always verify current ship state via status objects.
+
+### Cooldowns & Execution Timing
+- **Action Cooldowns:** Actions such as Extract, Survey, Refine, Siphon, Warp, and Jump incur a cooldown.
+- **Mandatory Wait:** NEVER issue another action to a ship until ship.cooldown.expiration has passed in UTC time.
+
+### Economy & Cargo
+- **Volume Limit:** Check remaining cargo capacity (cargo.capacity - cargo.units) before buying or extracting resources.
+- **Dynamic Pricing:** Market prices dynamically shift based on supply and demand. Do not rely on hardcoded prices—re-query market data when docked.
+
+---
+
+## 2. AGENT DECISION-MAKING LOOPS
+
+When deciding the next action for a ship, evaluate which loop the ship belongs to and follow the state sequence step-by-step:
+
+### Loop A: Mining / Extraction
+1. Verify ship is at an Asteroid / Extraction Waypoint. If not, navigate there (IN_ORBIT).
+2. Ensure ship status is IN_ORBIT.
+3. Execute /extract -> Wait for cooldown.expiration.
+4. Check cargo:
+   - If cargo.units < cargo.capacity: Repeat Extraction loop.
+   - If cargo.units == cargo.capacity: Navigate to market -> /dock -> Sell yield -> /refuel -> /orbit -> Return to step 1.
+
+### Loop B: Delivery / Contract Fulfillment
+1. Locate required goods via accepted contract or trade route.
+2. Navigate to source market -> /dock -> Buy required units -> /refuel -> /orbit.
+3. Navigate to target destination -> /dock -> Deliver / Sell cargo -> /refuel -> /orbit.
+
+---
+
+## 3. RESPONSE FORMAT REQUIREMENT
+
+To ensure seamless execution, always output your plan and actions in standard JSON format:
+
+
+{
+  "thought_process": "Brief description of current ship state, goals, and logic.",
+  "ship_symbol": "<SHIP_SYMBOL>",
+  "current_state": "IN_ORBIT | IN_DOCKED | IN_TRANSIT",
+  "cooldown_active": false,
+  "action": {
+    "type": "ORBIT | DOCK | NAVIGATE | EXTRACT | SELL | REFUEL | BUY",
+    "endpoint": "/v2/my/ships/<SHIP_SYMBOL>/<action>",
+    "payload": {}
+  }
+}
 `;
 
 export async function runAgentLoop(
@@ -32,14 +103,67 @@ export async function runAgentLoop(
     while (step < runConfig.maxSteps && totalCostUsd < runConfig.maxCostUsd) {
       if (abortController.signal.aborted) break;
 
-      const result = await generateText({
-        model: resolveModel(runConfig.model),
-        system: SYSTEM_PROMPT,
-        messages,
-        tools,
-        maxSteps: 1,
-        abortSignal: abortController.signal,
-      });
+      let result: GenerateTextResult<typeof tools, never>;
+      try {
+        result = await generateText({
+          model: resolveModel(runConfig.model),
+          system: SYSTEM_PROMPT,
+          messages,
+          tools,
+          maxSteps: 1,
+          abortSignal: abortController.signal,
+        });
+      } catch (err) {
+        if (
+          ToolExecutionError.isInstance(err) &&
+          err.cause instanceof SpaceTradersApiError &&
+          err.cause.status === 400
+        ) {
+          const hint = spaceTradersErrorMessage(err.cause.body);
+          step += 1;
+
+          messages.push(
+            {
+              role: "assistant",
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: err.toolCallId,
+                  toolName: err.toolName,
+                  args: err.toolArgs,
+                },
+              ],
+            },
+            {
+              role: "tool",
+              content: [
+                {
+                  type: "tool-result",
+                  toolCallId: err.toolCallId,
+                  toolName: err.toolName,
+                  result: hint,
+                  isError: true,
+                },
+              ],
+            },
+          );
+
+          journal.appendEntry({
+            runId,
+            stepNumber: step,
+            reasoning: null,
+            toolName: err.toolName,
+            toolArgs: err.toolArgs,
+            toolResult: { error: hint },
+            tokensUsed: 0,
+            costUsd: 0,
+          });
+          journal.updateRunProgress(runId, step, totalCostUsd);
+
+          continue;
+        }
+        throw err;
+      }
 
       step += 1;
       const usage = {
