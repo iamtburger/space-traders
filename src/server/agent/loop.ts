@@ -7,15 +7,22 @@ import type { RunConfig } from "../types";
 
 const SYSTEM_PROMPT = `You are an autonomous agent playing SpaceTraders, a space trading/exploration game reachable through the provided tools.
 Your goal is to grow the agent's net worth: explore, accept and fulfill contracts, trade goods profitably, and expand the fleet when it makes sense.
-Each turn, briefly state your reasoning, then call exactly one tool to take one concrete action. Use getAgent/listShips/listContracts to orient yourself before acting if you're unsure of the current state.`;
+Each turn, briefly state your reasoning, then call exactly one tool to take one concrete action. Use getAgent/listShips/listContracts to orient yourself before acting if you're unsure of the current state.
+
+Keep in mind that there are rules on how you can navigate the ships. For example if the ship is not orbit, you cannot navigate it to another waypoint. Always check the status of the ship before running the next step.
+`;
 
 export async function runAgentLoop(
   runId: string,
   runConfig: RunConfig,
-  abortController: AbortController
+  abortController: AbortController,
 ): Promise<void> {
   const messages: CoreMessage[] = [
-    { role: "user", content: "Begin. Check your agent status and ships, then decide your first action." },
+    {
+      role: "user",
+      content:
+        "Begin. Check your agent status and ships, then decide your first action.",
+    },
   ];
 
   let step = 0;
@@ -51,7 +58,8 @@ export async function runAgentLoop(
         reasoning: result.text || null,
         toolName: toolCall?.toolName ?? null,
         toolArgs: toolCall?.args ?? null,
-        toolResult: (toolResult as { result?: unknown } | undefined)?.result ?? null,
+        toolResult:
+          (toolResult as { result?: unknown } | undefined)?.result ?? null,
         tokensUsed: usage.promptTokens + usage.completionTokens,
         costUsd: stepCost,
       });
@@ -61,13 +69,22 @@ export async function runAgentLoop(
 
       if (!toolCall) {
         // Model only produced text with no tool call — nudge it to act next turn.
-        messages.push({ role: "user", content: "Continue: pick and call a tool for your next action." });
+        messages.push({
+          role: "user",
+          content: "Continue: pick and call a tool for your next action.",
+        });
       }
     }
 
-    journal.finishRun(runId, abortController.signal.aborted ? "stopped" : "completed_limit_reached");
+    journal.finishRun(
+      runId,
+      abortController.signal.aborted ? "stopped" : "completed_limit_reached",
+    );
   } catch (err) {
-    journal.finishRun(runId, abortController.signal.aborted ? "stopped" : "errored");
+    journal.finishRun(
+      runId,
+      abortController.signal.aborted ? "stopped" : "errored",
+    );
     if (!abortController.signal.aborted) throw err;
   }
 }
