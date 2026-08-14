@@ -103,7 +103,6 @@ export async function runAgentLoop(
         instructions: SYSTEM_PROMPT,
         messages,
         tools,
-        maxRetries: 1,
         abortSignal: abortController.signal,
       });
 

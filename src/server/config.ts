@@ -1,10 +1,10 @@
-import { z } from 'zod/v3';
+import { z } from "zod/v3";
 
 // dotenv turns "KEY=" into an empty string rather than leaving it unset, so an
 // optional key needs empty string treated as "not set" too.
 const optionalKey = z.preprocess(
   (v) => (v === "" ? undefined : v),
-  z.string().min(1).optional()
+  z.string().min(1).optional(),
 );
 
 const envSchema = z.object({
