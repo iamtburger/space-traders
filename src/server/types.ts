@@ -20,7 +20,7 @@ export interface JournalEntry {
   runId: string;
   stepNumber: number;
   createdAt: string;
-  reasoning: string | null;
+  reasoningText: string | null;
   toolName: string | null;
   toolArgs: unknown;
   toolResult: unknown;

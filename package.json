@@ -26,9 +26,10 @@
   },
   "homepage": "https://github.com/iamtburger/space-traders#readme",
   "dependencies": {
-    "@ai-sdk/anthropic": "^1.0.0",
-    "@ai-sdk/openai": "^1.0.0",
-    "ai": "^4.0.0",
+    "@ai-sdk/anthropic": "^4.0.38",
+    "@ai-sdk/openai": "^4.0.41",
+    "@ai-sdk/openai-compatible": "^3.0.30",
+    "ai": "^7.0.65",
     "better-sqlite3": "^11.8.1",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",

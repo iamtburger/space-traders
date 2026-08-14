@@ -65,7 +65,7 @@ export function RunDetail({ runId, onBack }: { runId: string; onBack: () => void
             <div style={{ fontWeight: "bold" }}>
               Step {entry.stepNumber} — {entry.toolName ?? "(no tool call)"}
             </div>
-            {entry.reasoning && <p style={{ fontStyle: "italic" }}>{entry.reasoning}</p>}
+            {entry.reasoningText && <p style={{ fontStyle: "italic" }}>{entry.reasoningText}</p>}
             {entry.toolArgs != null && (
               <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.85em" }}>
                 args: {JSON.stringify(entry.toolArgs)}

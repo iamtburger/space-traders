@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { z } from "zod";
+import { z } from 'zod/v3';
 import { config } from "../config";
 import * as journal from "../db/journal";
 import { startRun, stopRun } from "../agent/runner";

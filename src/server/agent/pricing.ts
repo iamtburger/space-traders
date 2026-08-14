@@ -13,14 +13,14 @@ const PRICING: Record<string, { inputPerMillion: number; outputPerMillion: numbe
 const FALLBACK_PRICING = { inputPerMillion: 3, outputPerMillion: 15 };
 
 export interface TokenUsage {
-  promptTokens: number;
-  completionTokens: number;
+  inputTokens: number;
+  outputTokens: number;
 }
 
 export function costFor(usage: TokenUsage, model: string): number {
   const { provider, modelId } = parseModelSpec(model);
   const pricing = PRICING[`${provider}:${modelId}`] ?? FALLBACK_PRICING;
-  const inputCost = (usage.promptTokens / 1_000_000) * pricing.inputPerMillion;
-  const outputCost = (usage.completionTokens / 1_000_000) * pricing.outputPerMillion;
+  const inputCost = (usage.inputTokens / 1_000_000) * pricing.inputPerMillion;
+  const outputCost = (usage.outputTokens / 1_000_000) * pricing.outputPerMillion;
   return inputCost + outputCost;
 }

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod/v3';
 
 // Only the fields the harness actually reads are modeled here — the real API
 // responses have many more fields. Extend as new tools need more data.

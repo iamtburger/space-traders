@@ -1,9 +1,4 @@
-import {
-  generateText,
-  ToolExecutionError,
-  type CoreMessage,
-  type GenerateTextResult,
-} from "ai";
+import { generateText, type ModelMessage, type TypedToolError } from "ai";
 import { resolveModel } from "./providers";
 import { tools } from "./tools";
 import { costFor } from "./pricing";
@@ -88,7 +83,7 @@ export async function runAgentLoop(
   runConfig: RunConfig,
   abortController: AbortController,
 ): Promise<void> {
-  const messages: CoreMessage[] = [
+  const messages: ModelMessage[] = [
     {
       role: "user",
       content:
@@ -103,72 +98,40 @@ export async function runAgentLoop(
     while (step < runConfig.maxSteps && totalCostUsd < runConfig.maxCostUsd) {
       if (abortController.signal.aborted) break;
 
-      let result: GenerateTextResult<typeof tools, never>;
-      try {
-        result = await generateText({
-          model: resolveModel(runConfig.model),
-          system: SYSTEM_PROMPT,
-          messages,
-          tools,
-          maxSteps: 1,
-          abortSignal: abortController.signal,
-        });
-      } catch (err) {
-        if (
-          ToolExecutionError.isInstance(err) &&
-          err.cause instanceof SpaceTradersApiError &&
-          err.cause.status === 400
-        ) {
-          const hint = spaceTradersErrorMessage(err.cause.body);
-          step += 1;
+      const result = await generateText({
+        model: resolveModel(runConfig.model),
+        instructions: SYSTEM_PROMPT,
+        messages,
+        tools,
+        maxRetries: 1,
+        abortSignal: abortController.signal,
+      });
 
-          messages.push(
-            {
-              role: "assistant",
-              content: [
-                {
-                  type: "tool-call",
-                  toolCallId: err.toolCallId,
-                  toolName: err.toolName,
-                  args: err.toolArgs,
-                },
-              ],
-            },
-            {
-              role: "tool",
-              content: [
-                {
-                  type: "tool-result",
-                  toolCallId: err.toolCallId,
-                  toolName: err.toolName,
-                  result: hint,
-                  isError: true,
-                },
-              ],
-            },
-          );
-
-          journal.appendEntry({
-            runId,
-            stepNumber: step,
-            reasoning: null,
-            toolName: err.toolName,
-            toolArgs: err.toolArgs,
-            toolResult: { error: hint },
-            tokensUsed: 0,
-            costUsd: 0,
-          });
-          journal.updateRunProgress(runId, step, totalCostUsd);
-
-          continue;
+      let toolErrorPart: TypedToolError<typeof tools> | undefined;
+      for (const part of result.content) {
+        if (part.type === "tool-error") {
+          toolErrorPart = part;
+          break;
         }
-        throw err;
+      }
+
+      // Bad requests (invalid args, wrong ship state, etc.) are recoverable —
+      // let the model see the hint and try again next turn. Anything else
+      // (network/auth/server failures) is unexpected, so fail the run.
+      if (
+        toolErrorPart &&
+        !(
+          toolErrorPart.error instanceof SpaceTradersApiError &&
+          toolErrorPart.error.status === 400
+        )
+      ) {
+        throw toolErrorPart.error;
       }
 
       step += 1;
       const usage = {
-        promptTokens: result.usage?.promptTokens ?? 0,
-        completionTokens: result.usage?.completionTokens ?? 0,
+        inputTokens: result.usage?.inputTokens ?? 0,
+        outputTokens: result.usage?.outputTokens ?? 0,
       };
       const stepCost = costFor(usage, runConfig.model);
       totalCostUsd += stepCost;
@@ -176,20 +139,24 @@ export async function runAgentLoop(
       const toolCall = result.toolCalls[0];
       const toolResult = result.toolResults[0];
 
+      const toolResultForJournal =
+        toolErrorPart && toolErrorPart.error instanceof SpaceTradersApiError
+          ? { error: spaceTradersErrorMessage(toolErrorPart.error.body) }
+          : (toolResult?.output ?? null);
+
       journal.appendEntry({
         runId,
         stepNumber: step,
-        reasoning: result.text || null,
+        reasoningText: result.text || null,
         toolName: toolCall?.toolName ?? null,
-        toolArgs: toolCall?.args ?? null,
-        toolResult:
-          (toolResult as { result?: unknown } | undefined)?.result ?? null,
-        tokensUsed: usage.promptTokens + usage.completionTokens,
+        toolArgs: toolCall?.input ?? null,
+        toolResult: toolResultForJournal,
+        tokensUsed: usage.inputTokens + usage.outputTokens,
         costUsd: stepCost,
       });
       journal.updateRunProgress(runId, step, totalCostUsd);
 
-      messages.push(...result.response.messages);
+      messages.push(...result.responseMessages);
 
       if (!toolCall) {
         // Model only produced text with no tool call — nudge it to act next turn.
