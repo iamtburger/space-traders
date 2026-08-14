@@ -6,6 +6,22 @@ import * as journal from "../db/journal";
 import type { RunConfig } from "../types";
 import { SpaceTradersApiError } from "../spacetraders/client";
 
+const MIN_STEP_DURATION_MS = 3000;
+
+function sleep(ms: number, abortSignal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    abortSignal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      { once: true },
+    );
+  });
+}
+
 function spaceTradersErrorMessage(body: unknown): string {
   const error = (body as { error?: { message?: string } } | undefined)?.error;
   return error?.message ?? "Bad request.";
@@ -98,6 +114,8 @@ export async function runAgentLoop(
     while (step < runConfig.maxSteps && totalCostUsd < runConfig.maxCostUsd) {
       if (abortController.signal.aborted) break;
 
+      const stepStartedAt = Date.now();
+
       const result = await generateText({
         model: resolveModel(runConfig.model),
         instructions: SYSTEM_PROMPT,
@@ -163,6 +181,11 @@ export async function runAgentLoop(
           role: "user",
           content: "Continue: pick and call a tool for your next action.",
         });
+      }
+
+      const elapsedMs = Date.now() - stepStartedAt;
+      if (elapsedMs < MIN_STEP_DURATION_MS) {
+        await sleep(MIN_STEP_DURATION_MS - elapsedMs, abortController.signal);
       }
     }
 

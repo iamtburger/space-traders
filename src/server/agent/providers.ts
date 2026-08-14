@@ -3,10 +3,11 @@ import { openai } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { LanguageModel } from "ai";
 import { config } from "../config";
+import { mistral } from "@ai-sdk/mistral";
 
 // To add another provider (e.g. Mistral): install its @ai-sdk/* package, add an
 // entry to PROVIDERS below, and add a name-pattern branch in inferProvider.
-export type ProviderName = "anthropic" | "openai" | "local";
+export type ProviderName = "anthropic" | "openai" | "local" | "mistral";
 
 interface ProviderDef {
   create(modelId: string): LanguageModel;
@@ -34,11 +35,17 @@ const PROVIDERS: Record<ProviderName, ProviderDef> = {
     create: () => lmstudio(""),
     hasApiKey: () => true,
   },
+  mistral: {
+    create: (modelId) => mistral(modelId),
+    apiKeyEnvVar: "MISTRAL_API_KEY",
+    hasApiKey: () => Boolean(config.MISTRAL_API_KEY),
+  },
 };
 
 function inferProvider(modelId: string): ProviderName {
   if (/^claude-/.test(modelId)) return "anthropic";
   if (/^(gpt-|o[1-9]|chatgpt)/.test(modelId)) return "openai";
+  if (/stral/.test(modelId)) return "mistral";
   if (modelId === "lmstudio") return "local";
   throw new Error(
     `Cannot infer a provider for model "${modelId}". Prefix it explicitly, e.g. "openai:${modelId}".`,

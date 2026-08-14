@@ -27,6 +27,7 @@
   "homepage": "https://github.com/iamtburger/space-traders#readme",
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.38",
+    "@ai-sdk/mistral": "^4.0.29",
     "@ai-sdk/openai": "^4.0.41",
     "@ai-sdk/openai-compatible": "^3.0.30",
     "ai": "^7.0.65",

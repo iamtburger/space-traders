@@ -13,6 +13,7 @@ const envSchema = z.object({
   // actually run needs to be set. providers.ts raises a clear error otherwise.
   ANTHROPIC_API_KEY: optionalKey,
   OPENAI_API_KEY: optionalKey,
+  MISTRAL_API_KEY: optionalKey,
   SPACETRADERS_TOKEN: z.string().min(1, "SPACETRADERS_TOKEN is required"),
   DEFAULT_MODEL: z.string().default("anthropic:claude-haiku-4-5-20251001"),
   DEFAULT_MAX_STEPS: z.coerce.number().int().positive().default(25),
