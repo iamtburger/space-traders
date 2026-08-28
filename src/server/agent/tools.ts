@@ -7,6 +7,24 @@ import {
 	waypointTypes,
 } from "../spacetraders/schemas";
 
+// Caps how long waitForArrival will block on a single (possibly bogus)
+// timestamp, so a malformed arrivalTime can't stall a run indefinitely.
+const MAX_WAIT_MS = 30 * 60 * 1000;
+
+function sleep(ms: number, abortSignal?: AbortSignal): Promise<void> {
+	return new Promise((resolve) => {
+		const timer = setTimeout(resolve, ms);
+		abortSignal?.addEventListener(
+			"abort",
+			() => {
+				clearTimeout(timer);
+				resolve();
+			},
+			{ once: true },
+		);
+	});
+}
+
 // One tool per SpaceTraders action the agent can take. This is a representative
 // starter set (agent/fleet/waypoint/contract basics), not full API coverage —
 // add more tools here following the same pattern as gameplay needs grow.
@@ -58,6 +76,32 @@ export const tools = {
 		}),
 		execute: async ({ shipSymbol, waypointSymbol }) =>
 			spaceTraders.navigateShip(shipSymbol, waypointSymbol),
+	}),
+
+	waitForArrival: tool({
+		description:
+			"Block until a ship's current transit finishes, then return its fresh status. Use this right after navigateShip instead of repeatedly polling listShips — pass the arrivalTime from navigateShip's nav.route so the tool can sleep until then.",
+		inputSchema: z.object({
+			shipSymbol: z.string(),
+			arrivalTime: z
+				.string()
+				.describe(
+					"ISO 8601 timestamp to wait until, taken from the navigateShip response's nav.route.arrivalTime.",
+				),
+		}),
+		execute: async ({ shipSymbol, arrivalTime }, { abortSignal }) => {
+			const waitMs = Math.min(
+				Math.max(new Date(arrivalTime).getTime() - Date.now(), 0),
+				MAX_WAIT_MS,
+			);
+			await sleep(waitMs, abortSignal);
+			const ships = await spaceTraders.listShips();
+			const ship = ships.find((s) => s.symbol === shipSymbol);
+			if (!ship) {
+				throw new Error(`No ship found with symbol ${shipSymbol}`);
+			}
+			return ship;
+		},
 	}),
 
 	sellCargo: tool({

@@ -1,10 +1,16 @@
-import { generateText, type ModelMessage, type TypedToolError } from "ai";
+import {
+  generateText,
+  Output,
+  type ModelMessage,
+  type TypedToolError,
+} from "ai";
 import { resolveModel } from "./providers";
 import { tools } from "./tools";
 import { costFor } from "./pricing";
 import * as journal from "../db/journal";
 import type { RunConfig } from "../types";
 import { SpaceTradersApiError } from "../spacetraders/client";
+import z from "zod";
 
 const MIN_STEP_DURATION_MS = 3000;
 
@@ -61,6 +67,10 @@ You are an autonomous AI agent playing the game **SpaceTraders API v2**. Your go
 
 When deciding the next action for a ship, evaluate which loop the ship belongs to and follow the state sequence step-by-step:
 
+IMPORTANT!
+- always check if there is enough fuel for the endevour
+- before travelling to a waypoint check if it fits the purpose. For example when mining make sure that it is possible to mine the necessary minerals.
+
 ### Loop A: Mining / Extraction
 1. Verify ship is at an Asteroid / Extraction Waypoint. If not, navigate there (IN_ORBIT).
 2. Ensure ship status is IN_ORBIT.
@@ -73,6 +83,7 @@ When deciding the next action for a ship, evaluate which loop the ship belongs t
 1. Locate required goods via accepted contract or trade route.
 2. Navigate to source market -> /dock -> Buy required units -> /refuel -> /orbit.
 3. Navigate to target destination -> /dock -> Deliver / Sell cargo -> /refuel -> /orbit.
+
 
 ---
 
@@ -122,6 +133,45 @@ export async function runAgentLoop(
         messages,
         tools,
         abortSignal: abortController.signal,
+        output: Output.object({
+          schema: z.object({
+            summary: z.string().describe("A short summary of the current step"),
+            thought_process: z
+              .string()
+              .describe(
+                "Brief description of current ship state, goals, and logic.",
+              ),
+            ship_symbol: z.string().nullable().describe("<SHIP_SYMBOL>"),
+            current_state: z
+              .enum(["IN_ORBIT", "IN_DOCKED", "IN_TRANSIT"])
+              .nullable(),
+            cooldown_active: z.boolean().nullable(),
+            action: z.object({
+              type: z
+                .enum([
+                  "ORBIT",
+                  "DOCK",
+                  "NAVIGATE",
+                  "EXTRACT",
+                  "SELL",
+                  "REFUEL",
+                  "BUY",
+                ])
+                .nullable()
+                .describe("The type of action."),
+              endpoint: z
+                .string()
+                .nullable()
+                .describe("/v2/my/ships/<SHIP_SYMBOL>/<action>"),
+              payload: z
+                .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+                .nullable()
+                .describe(
+                  "If there was a payload this should be represented here, as flat key-value pairs.",
+                ),
+            }),
+          }),
+        }),
       });
 
       let toolErrorPart: TypedToolError<typeof tools> | undefined;
