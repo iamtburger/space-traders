@@ -51,8 +51,7 @@ export function RunDetail({ runId, onBack }: { runId: string; onBack: () => void
             Run {run.id.slice(0, 8)} — {run.status}
           </h2>
           <p>
-            Model: {run.model} · Steps: {run.totalSteps}/{run.maxSteps} · Cost: $
-            {run.totalCostUsd.toFixed(4)}/${run.maxCostUsd.toFixed(2)}
+            Model: {run.model} · Steps: {run.totalSteps}/{run.maxSteps}
           </p>
           {run.status === "running" && <button onClick={handleStop}>Stop run</button>}
         </div>
@@ -77,7 +76,7 @@ export function RunDetail({ runId, onBack }: { runId: string; onBack: () => void
               </pre>
             )}
             <div style={{ fontSize: "0.8em", color: "#666" }}>
-              {entry.tokensUsed} tokens · ${entry.costUsd.toFixed(5)}
+              {entry.tokensUsed} tokens
             </div>
           </li>
         ))}

@@ -6,7 +6,6 @@ import {
 } from "ai";
 import { resolveModel } from "./providers";
 import { tools } from "./tools";
-import { costFor } from "./pricing";
 import * as journal from "../db/journal";
 import * as strategy from "../db/strategy";
 import type { RunConfig } from "../types";
@@ -103,7 +102,6 @@ export async function runAgentLoop(
   ];
 
   let step = 0;
-  let totalCostUsd = 0;
 
   const strategyNotes = strategy.listStrategyNotes();
   const instructions = strategyNotes.length
@@ -111,7 +109,7 @@ export async function runAgentLoop(
     : SYSTEM_PROMPT;
 
   try {
-    while (step < runConfig.maxSteps && totalCostUsd < runConfig.maxCostUsd) {
+    while (step < runConfig.maxSteps) {
       if (abortController.signal.aborted) break;
 
       const stepStartedAt = Date.now();
@@ -192,8 +190,6 @@ export async function runAgentLoop(
         inputTokens: result.usage?.inputTokens ?? 0,
         outputTokens: result.usage?.outputTokens ?? 0,
       };
-      const stepCost = costFor(usage, runConfig.model);
-      totalCostUsd += stepCost;
 
       const toolCall = result.toolCalls[0];
       const toolResult = result.toolResults[0];
@@ -211,9 +207,8 @@ export async function runAgentLoop(
         toolArgs: toolCall?.input ?? null,
         toolResult: toolResultForJournal,
         tokensUsed: usage.inputTokens + usage.outputTokens,
-        costUsd: stepCost,
       });
-      journal.updateRunProgress(runId, step, totalCostUsd);
+      journal.updateRunProgress(runId, step);
 
       messages.push(...result.responseMessages);
 

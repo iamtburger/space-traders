@@ -8,7 +8,6 @@ export const runsRouter = Router();
 
 const createRunSchema = z.object({
   maxSteps: z.number().int().positive().max(1000).optional(),
-  maxCostUsd: z.number().positive().max(100).optional(),
   model: z.string().optional(),
 });
 
@@ -21,7 +20,6 @@ runsRouter.post("/", (req, res) => {
 
   const run = startRun({
     maxSteps: parsed.data.maxSteps ?? config.DEFAULT_MAX_STEPS,
-    maxCostUsd: parsed.data.maxCostUsd ?? config.DEFAULT_MAX_COST_USD,
     model: parsed.data.model ?? config.DEFAULT_MODEL,
   });
 

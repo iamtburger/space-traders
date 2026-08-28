@@ -2,7 +2,6 @@ export type RunStatus = "running" | "completed_limit_reached" | "stopped" | "err
 
 export interface RunConfig {
   maxSteps: number;
-  maxCostUsd: number;
   model: string;
 }
 
@@ -12,7 +11,6 @@ export interface RunRecord extends RunConfig {
   startedAt: string;
   endedAt: string | null;
   totalSteps: number;
-  totalCostUsd: number;
 }
 
 export interface StrategyNote {
@@ -31,5 +29,4 @@ export interface JournalEntry {
   toolArgs: unknown;
   toolResult: unknown;
   tokensUsed: number;
-  costUsd: number;
 }

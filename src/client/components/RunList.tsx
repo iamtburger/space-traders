@@ -38,7 +38,6 @@ export function RunList({ onSelect }: { onSelect: (runId: string) => void }) {
             <th>Status</th>
             <th>Model</th>
             <th>Steps</th>
-            <th>Cost (USD)</th>
             <th />
           </tr>
         </thead>
@@ -52,16 +51,13 @@ export function RunList({ onSelect }: { onSelect: (runId: string) => void }) {
                 {run.totalSteps} / {run.maxSteps}
               </td>
               <td>
-                ${run.totalCostUsd.toFixed(4)} / ${run.maxCostUsd.toFixed(2)}
-              </td>
-              <td>
                 <button onClick={() => onSelect(run.id)}>View</button>
               </td>
             </tr>
           ))}
           {runs.length === 0 && (
             <tr>
-              <td colSpan={6}>No runs yet.</td>
+              <td colSpan={5}>No runs yet.</td>
             </tr>
           )}
         </tbody>

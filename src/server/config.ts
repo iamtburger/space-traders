@@ -17,7 +17,6 @@ const envSchema = z.object({
   SPACETRADERS_TOKEN: z.string().min(1, "SPACETRADERS_TOKEN is required"),
   DEFAULT_MODEL: z.string().default("anthropic:claude-haiku-4-5-20251001"),
   DEFAULT_MAX_STEPS: z.coerce.number().int().positive().default(25),
-  DEFAULT_MAX_COST_USD: z.coerce.number().positive().default(0.5),
   DB_PATH: z.string().default("data/journal.sqlite"),
 });
 

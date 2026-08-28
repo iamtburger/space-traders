@@ -4,12 +4,10 @@ export interface RunRecord {
   id: string;
   status: RunStatus;
   maxSteps: number;
-  maxCostUsd: number;
   model: string;
   startedAt: string;
   endedAt: string | null;
   totalSteps: number;
-  totalCostUsd: number;
 }
 
 export interface JournalEntry {
@@ -22,12 +20,10 @@ export interface JournalEntry {
   toolArgs: unknown;
   toolResult: unknown;
   tokensUsed: number;
-  costUsd: number;
 }
 
 export interface NewRunInput {
   maxSteps?: number;
-  maxCostUsd?: number;
   model?: string;
 }
 
