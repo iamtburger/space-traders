@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS strategy_notes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL,
+  note TEXT NOT NULL
+);

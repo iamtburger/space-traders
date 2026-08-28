@@ -15,6 +15,12 @@ export interface RunRecord extends RunConfig {
   totalCostUsd: number;
 }
 
+export interface StrategyNote {
+  id: number;
+  createdAt: string;
+  note: string;
+}
+
 export interface JournalEntry {
   id: number;
   runId: string;

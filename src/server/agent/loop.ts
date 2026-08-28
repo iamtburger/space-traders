@@ -8,6 +8,7 @@ import { resolveModel } from "./providers";
 import { tools } from "./tools";
 import { costFor } from "./pricing";
 import * as journal from "../db/journal";
+import * as strategy from "../db/strategy";
 import type { RunConfig } from "../types";
 import { SpaceTradersApiError } from "../spacetraders/client";
 import z from "zod";
@@ -85,24 +86,7 @@ IMPORTANT!
 3. Navigate to target destination -> /dock -> Deliver / Sell cargo -> /refuel -> /orbit.
 
 
----
 
-## 3. RESPONSE FORMAT REQUIREMENT
-
-To ensure seamless execution, always output your plan and actions in standard JSON format:
-
-
-{
-  "thought_process": "Brief description of current ship state, goals, and logic.",
-  "ship_symbol": "<SHIP_SYMBOL>",
-  "current_state": "IN_ORBIT | IN_DOCKED | IN_TRANSIT",
-  "cooldown_active": false,
-  "action": {
-    "type": "ORBIT | DOCK | NAVIGATE | EXTRACT | SELL | REFUEL | BUY",
-    "endpoint": "/v2/my/ships/<SHIP_SYMBOL>/<action>",
-    "payload": {}
-  }
-}
 `;
 
 export async function runAgentLoop(
@@ -121,6 +105,11 @@ export async function runAgentLoop(
   let step = 0;
   let totalCostUsd = 0;
 
+  const strategyNotes = strategy.listStrategyNotes();
+  const instructions = strategyNotes.length
+    ? `${SYSTEM_PROMPT}\n\n---\n\n## LEARNED STRATEGY NOTES\nLearnings recorded by previous runs via updateStrategy — apply them:\n${strategyNotes.map((n) => `- ${n.note}`).join("\n")}`
+    : SYSTEM_PROMPT;
+
   try {
     while (step < runConfig.maxSteps && totalCostUsd < runConfig.maxCostUsd) {
       if (abortController.signal.aborted) break;
@@ -129,7 +118,7 @@ export async function runAgentLoop(
 
       const result = await generateText({
         model: resolveModel(runConfig.model),
-        instructions: SYSTEM_PROMPT,
+        instructions,
         messages,
         tools,
         abortSignal: abortController.signal,
@@ -164,7 +153,10 @@ export async function runAgentLoop(
                 .nullable()
                 .describe("/v2/my/ships/<SHIP_SYMBOL>/<action>"),
               payload: z
-                .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+                .record(
+                  z.string(),
+                  z.union([z.string(), z.number(), z.boolean()]),
+                )
                 .nullable()
                 .describe(
                   "If there was a payload this should be represented here, as flat key-value pairs.",

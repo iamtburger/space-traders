@@ -13,6 +13,7 @@ import {
   WaypointTypes,
   type Agent,
   type Contract,
+  type FlightMode,
   type Ship,
   type ShipCargo,
   type ShipNav,
@@ -33,6 +34,7 @@ export class SpaceTradersApiError extends Error {
 const RequestMethod = {
   GET: "GET",
   POST: "POST",
+  PATCH: "PATCH",
 } as const;
 
 type RequestMethod = (typeof RequestMethod)[keyof typeof RequestMethod];
@@ -110,6 +112,16 @@ export function navigateShip(
     z.any(),
     { waypointSymbol },
   );
+}
+
+export function getShipNav(shipSymbol: string) {
+  return request(RequestMethod.GET, `my/ships/${shipSymbol}/nav`, z.any());
+}
+
+export function patchShipNav(shipSymbol: string, flightMode: FlightMode) {
+  return request(RequestMethod.PATCH, `/my/ships/${shipSymbol}/nav`, z.any(), {
+    flightMode,
+  });
 }
 
 export function sellCargo(
