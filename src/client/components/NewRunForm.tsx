@@ -26,10 +26,7 @@ export function NewRunForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      style={{ display: "flex", gap: "0.75rem", alignItems: "flex-end" }}
-    >
+    <form className="new-run-form" onSubmit={handleSubmit}>
       <label>
         Max steps
         <br />
@@ -53,7 +50,7 @@ export function NewRunForm({
       <button type="submit" disabled={submitting}>
         {submitting ? "Starting…" : "Start run"}
       </button>
-      {error && <span style={{ color: "crimson" }}>{error}</span>}
+      {error && <span className="error-text">{error}</span>}
     </form>
   );
 }

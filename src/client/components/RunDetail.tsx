@@ -1,7 +1,27 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type JournalEntry, type RunRecord } from "../backend";
+import { StatusBadge } from "./StatusBadge";
+import { JsonBlock } from "./JsonBlock";
 
 const POLL_INTERVAL_MS = 2000;
+
+interface ParsedReasoning {
+  summary?: string;
+  thought_process?: string;
+  ship_symbol?: string | null;
+  current_state?: string | null;
+  cooldown_active?: boolean | null;
+}
+
+function parseReasoning(text: string | null): ParsedReasoning | null {
+  if (!text) return null;
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === "object" ? (parsed as ParsedReasoning) : null;
+  } catch {
+    return null;
+  }
+}
 
 export function RunDetail({ runId, onBack }: { runId: string; onBack: () => void }) {
   const [run, setRun] = useState<RunRecord | null>(null);
@@ -46,11 +66,11 @@ export function RunDetail({ runId, onBack }: { runId: string; onBack: () => void
     <div>
       <button onClick={onBack}>&larr; Back to runs</button>
       {run && (
-        <div style={{ margin: "1rem 0" }}>
-          <h2>
-            Run {run.id.slice(0, 8)} — {run.status}
+        <div className="run-detail-header">
+          <h2 className="run-detail-title">
+            Run {run.id.slice(0, 8)} <StatusBadge status={run.status} />
           </h2>
-          <p>
+          <p className="run-detail-meta">
             Model: {run.model} · Steps: {run.totalSteps}/{run.maxSteps}
           </p>
           {run.status === "running" && <button onClick={handleStop}>Stop run</button>}
@@ -58,29 +78,41 @@ export function RunDetail({ runId, onBack }: { runId: string; onBack: () => void
       )}
 
       <h3>Journal</h3>
-      <ol style={{ padding: 0, listStyle: "none" }}>
-        {entries.map((entry) => (
-          <li key={entry.id} style={{ border: "1px solid #ddd", borderRadius: 6, padding: "0.75rem", marginBottom: "0.5rem" }}>
-            <div style={{ fontWeight: "bold" }}>
-              Step {entry.stepNumber} — {entry.toolName ?? "(no tool call)"}
-            </div>
-            {entry.reasoningText && <p style={{ fontStyle: "italic" }}>{entry.reasoningText}</p>}
-            {entry.toolArgs != null && (
-              <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.85em" }}>
-                args: {JSON.stringify(entry.toolArgs)}
-              </pre>
-            )}
-            {entry.toolResult != null && (
-              <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.85em" }}>
-                result: {JSON.stringify(entry.toolResult)}
-              </pre>
-            )}
-            <div style={{ fontSize: "0.8em", color: "#666" }}>
-              {entry.tokensUsed} tokens
-            </div>
-          </li>
-        ))}
-        {entries.length === 0 && <li>No journal entries yet.</li>}
+      <ol className="journal-list">
+        {entries.map((entry) => {
+          const reasoning = parseReasoning(entry.reasoningText);
+          const summaryText = reasoning?.summary || (reasoning ? null : entry.reasoningText);
+
+          return (
+            <li key={entry.id} className={`entry${entry.toolName ? " has-tool" : ""}`}>
+              {summaryText ? (
+                <p className="entry-summary">{summaryText}</p>
+              ) : (
+                <p className="entry-summary empty">no summary for this step</p>
+              )}
+
+              {reasoning?.thought_process && <p className="entry-thought">{reasoning.thought_process}</p>}
+
+              <div className="entry-meta">
+                <span className="badge badge-step">Step {entry.stepNumber}</span>
+                {entry.toolName && <span className="badge badge-tool">{entry.toolName}</span>}
+                {reasoning?.ship_symbol && <span className="badge badge-ship">{reasoning.ship_symbol}</span>}
+                {reasoning?.current_state && <span className="badge badge-state">{reasoning.current_state}</span>}
+                {reasoning?.cooldown_active && <span className="badge badge-cooldown">cooldown</span>}
+                <span>{new Date(entry.createdAt).toLocaleTimeString()}</span>
+                <span>{entry.tokensUsed} tokens</span>
+              </div>
+
+              {(entry.toolArgs != null || entry.toolResult != null) && (
+                <div className="entry-payload">
+                  <JsonBlock label="args" value={entry.toolArgs} />
+                  <JsonBlock label="result" value={entry.toolResult} />
+                </div>
+              )}
+            </li>
+          );
+        })}
+        {entries.length === 0 && <li className="empty-row">no journal entries yet</li>}
       </ol>
     </div>
   );

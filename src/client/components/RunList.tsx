@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type RunRecord } from "../backend";
 import { NewRunForm } from "./NewRunForm";
+import { StatusBadge } from "./StatusBadge";
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -27,13 +28,15 @@ export function RunList({ onSelect }: { onSelect: (runId: string) => void }) {
 
   return (
     <div>
-      <h2>Start a new run</h2>
-      <NewRunForm onStarted={onSelect} />
+      <div className="panel">
+        <div className="panel-label">New run</div>
+        <NewRunForm onStarted={onSelect} />
+      </div>
 
-      <h2 style={{ marginTop: "2rem" }}>Runs</h2>
-      <table cellPadding={6} style={{ borderCollapse: "collapse", width: "100%" }}>
+      <h2>Runs</h2>
+      <table className="run-table">
         <thead>
-          <tr style={{ textAlign: "left", borderBottom: "1px solid #888" }}>
+          <tr>
             <th>Started</th>
             <th>Status</th>
             <th>Model</th>
@@ -43,9 +46,11 @@ export function RunList({ onSelect }: { onSelect: (runId: string) => void }) {
         </thead>
         <tbody>
           {runs.map((run) => (
-            <tr key={run.id} style={{ borderBottom: "1px solid #ddd" }}>
+            <tr key={run.id}>
               <td>{new Date(run.startedAt).toLocaleString()}</td>
-              <td>{run.status}</td>
+              <td>
+                <StatusBadge status={run.status} />
+              </td>
               <td>{run.model}</td>
               <td>
                 {run.totalSteps} / {run.maxSteps}
@@ -57,7 +62,9 @@ export function RunList({ onSelect }: { onSelect: (runId: string) => void }) {
           ))}
           {runs.length === 0 && (
             <tr>
-              <td colSpan={5}>No runs yet.</td>
+              <td colSpan={5} className="empty-row">
+                no runs yet
+              </td>
             </tr>
           )}
         </tbody>
