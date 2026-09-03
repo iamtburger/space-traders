@@ -172,14 +172,17 @@ export async function runAgentLoop(
         }
       }
 
-      // Bad requests (invalid args, wrong ship state, etc.) are recoverable —
-      // let the model see the hint and try again next turn. Anything else
-      // (network/auth/server failures) is unexpected, so fail the run.
+      // Bad requests (invalid args, wrong ship state, etc.) and not-found
+      // lookups (e.g. querying a waypoint with no shipyard/market) are
+      // recoverable — let the model see the hint and try again next turn.
+      // Anything else (network/auth/server failures) is unexpected, so fail
+      // the run.
       if (
         toolErrorPart &&
         !(
           toolErrorPart.error instanceof SpaceTradersApiError &&
-          toolErrorPart.error.status === 400
+          (toolErrorPart.error.status === 400 ||
+            toolErrorPart.error.status === 404)
         )
       ) {
         throw toolErrorPart.error;

@@ -7,7 +7,7 @@ export function NewRunForm({
   onStarted: (runId: string) => void;
 }) {
   const [maxSteps, setMaxSteps] = useState(25);
-  const [model, setModel] = useState("openai:gpt-5.4-mini");
+  const [model, setModel] = useState("gpt-5.6-luna");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
