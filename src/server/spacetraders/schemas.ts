@@ -220,5 +220,5 @@ export const shipTypes = z.enum([
 
 export type ShipTypes = z.infer<typeof shipTypes>;
 
-export const navType = z.enum(["DRIFT", "STEALTH", "CURISE", "BURN"]);
+export const navType = z.enum(["DRIFT", "STEALTH", "CRUISE", "BURN"]);
 export type FlightMode = z.infer<typeof navType>;
